@@ -75,7 +75,7 @@ const STEP_CHECKS: Record<number, string> = {
 
 export default function Module2({ result, weeks, onChange }: Props) {
   const { allowedScope, steps, rcaSummary } = result;
-  const [showTier2, setShowTier2] = useState(false);
+  const [showTier2, setShowTier2] = useState(true);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
   const [bulkText, setBulkText] = useState('');
 
@@ -149,20 +149,23 @@ export default function Module2({ result, weeks, onChange }: Props) {
       </div>
 
       {/* Tier 2 — Directional Data Input */}
-      <div className="border-b border-gray-800">
-        <div className="flex items-center">
+      <div className="border-b border-yellow-800/40">
+        <div className="flex items-center justify-between bg-yellow-900/15 border-b border-yellow-800/30">
           <button
             onClick={() => setShowTier2(!showTier2)}
-            className="flex-1 flex items-center justify-between p-3 text-xs text-yellow-600 hover:bg-gray-800/50 transition-colors"
+            className="flex-1 flex items-center justify-between px-5 py-4 text-yellow-500 hover:bg-yellow-900/20 transition-colors"
           >
-            <span className="font-medium">Tier 2 — Directional Data Input</span>
-            <span>{showTier2 ? '▲' : '▼'}</span>
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-base font-bold tracking-wide">Tier 2 — Directional Data Input</span>
+              <span className="text-xs text-yellow-600/80 font-normal">Enter your Meta Ads + Shopify funnel metrics below to unlock the full diagnostic</span>
+            </div>
+            <span className="text-lg ml-4">{showTier2 ? '▲' : '▼'}</span>
           </button>
           {showTier2 && (
-            <div className="flex gap-1.5 mr-3">
+            <div className="flex gap-2 mr-5">
               <button
                 onClick={() => setShowBulkPaste(!showBulkPaste)}
-                className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                className={`text-xs px-3 py-1.5 rounded border font-medium transition-colors ${
                   showBulkPaste
                     ? 'border-yellow-600 bg-yellow-900/30 text-yellow-400'
                     : 'border-gray-700 bg-gray-800 text-gray-400 hover:text-yellow-400 hover:border-yellow-700'
@@ -172,35 +175,35 @@ export default function Module2({ result, weeks, onChange }: Props) {
               </button>
               <button
                 onClick={handleClearTier2}
-                className="text-[10px] px-2 py-1 rounded border border-gray-700 bg-gray-800 text-gray-400 hover:text-red-400 hover:border-red-700 transition-colors"
+                className="text-xs px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-400 hover:text-red-400 hover:border-red-700 font-medium transition-colors"
               >
-                Clear
+                Clear All
               </button>
             </div>
           )}
         </div>
         {showTier2 && showBulkPaste && (
-          <div className="px-3 pb-3 space-y-2">
-            <p className="text-[10px] text-gray-500">
-              Paste all Tier 2 data from a spreadsheet. Rows: CPM, CTR, CPC, Frequency, Meta Clicks, Shopify Sessions, CVR. Columns: one per week (tab-separated).
+          <div className="px-5 py-4 space-y-3 bg-gray-800/30">
+            <p className="text-sm text-gray-400">
+              Paste all Tier 2 data from your spreadsheet. <span className="text-yellow-500 font-medium">Rows:</span> CPM, CTR, CPC, Frequency, Meta Clicks, Shopify Sessions, CVR. <span className="text-yellow-500 font-medium">Columns:</span> one per week (tab-separated).
             </p>
             <textarea
               value={bulkText}
               onChange={e => setBulkText(e.target.value)}
               placeholder={"12.50\t13.20\t11.80\n2.1\t1.9\t2.3\n0.60\t0.70\t0.55\n1.8\t2.0\t1.7\n1200\t1100\t1300\n980\t920\t1050\n3.2\t2.8\t3.5"}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-yellow-600 min-h-[120px] resize-y"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/30 min-h-[160px] resize-y"
             />
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={handleBulkApply}
                 disabled={bulkText.trim() === ''}
-                className="text-xs bg-yellow-700 hover:bg-yellow-600 text-white px-3 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-sm bg-yellow-700 hover:bg-yellow-600 text-white px-5 py-2 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Apply Data
               </button>
               <button
                 onClick={() => { setBulkText(''); setShowBulkPaste(false); }}
-                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1.5 rounded transition-colors"
+                className="text-sm bg-gray-800 hover:bg-gray-700 text-gray-400 px-5 py-2 rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -208,14 +211,14 @@ export default function Module2({ result, weeks, onChange }: Props) {
           </div>
         )}
         {showTier2 && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto px-2 pb-4 pt-2">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="py-2 px-3 text-left text-xs text-gray-500 sticky left-0 bg-gray-900 z-10 min-w-[180px]">Metric</th>
+                <tr className="border-b-2 border-gray-700">
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-400 sticky left-0 bg-gray-900 z-10 min-w-[200px]">Metric</th>
                   {weeks.map((week, i) => (
-                    <th key={i} className="py-2 px-1 min-w-[90px]">
-                      <div className="text-xs text-center text-gray-300 px-2">
+                    <th key={i} className="py-3 px-2 min-w-[110px]">
+                      <div className="text-sm text-center text-gray-300 font-semibold px-2">
                         {week.label || `WK ${i + 1}`}
                       </div>
                     </th>
@@ -226,24 +229,34 @@ export default function Module2({ result, weeks, onChange }: Props) {
                 {TIER2_ROWS.map((row, rowIdx) => {
                   const sectionHeader = row.section;
                   return (
-                    <tr key={row.key} className={`border-b border-gray-800 ${sectionHeader ? 'border-t-2 border-t-gray-700' : ''}`}>
-                      <td className="py-2 px-3 text-xs font-medium text-white whitespace-nowrap sticky left-0 bg-gray-900 z-10 min-w-[180px]">
-                        {row.label}
-                        <span className="ml-1 text-yellow-600 text-[10px]">T2</span>
-                      </td>
-                      {weeks.map((week, i) => (
-                        <td key={i} className="py-1 px-1">
-                          <input
-                            type="text"
-                            value={formatVal(week[row.key] as number | null, row.prefix, row.suffix)}
-                            onChange={e => updateCell(i, row.key, e.target.value)}
-                            onPaste={e => handleCellPaste(e, rowIdx, i)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-right text-white focus:outline-none focus:border-red-500 min-w-[80px]"
-                            placeholder="-"
-                          />
+                    <>
+                      {sectionHeader && (
+                        <tr key={`section-${row.key}`}>
+                          <td colSpan={weeks.length + 1} className="pt-4 pb-1 px-4">
+                            <span className="text-xs font-bold text-yellow-600/70 uppercase tracking-widest">{sectionHeader}</span>
+                          </td>
+                        </tr>
+                      )}
+                      <tr key={row.key} className="border-b border-gray-800/60 hover:bg-gray-800/20 transition-colors">
+                        <td className="py-3 px-4 text-sm font-medium text-white whitespace-nowrap sticky left-0 bg-gray-900 z-10 min-w-[200px]">
+                          {row.label}
+                          {row.prefix && <span className="ml-1.5 text-gray-600 text-xs">{row.prefix}</span>}
+                          {row.suffix && <span className="ml-1.5 text-gray-600 text-xs">{row.suffix}</span>}
                         </td>
-                      ))}
-                    </tr>
+                        {weeks.map((week, i) => (
+                          <td key={i} className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={formatVal(week[row.key] as number | null, row.prefix, row.suffix)}
+                              onChange={e => updateCell(i, row.key, e.target.value)}
+                              onPaste={e => handleCellPaste(e, rowIdx, i)}
+                              className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2.5 text-sm text-right text-white focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/30 min-w-[100px] placeholder:text-gray-600"
+                              placeholder="-"
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    </>
                   );
                 })}
               </tbody>

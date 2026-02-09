@@ -124,7 +124,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-[1800px] mx-auto px-4 py-6 space-y-6">
         {loading ? (
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-8 text-center">
             <p className="text-gray-400 text-sm">Loading data from spreadsheet...</p>
