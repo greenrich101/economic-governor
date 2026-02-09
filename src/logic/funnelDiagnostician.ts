@@ -343,23 +343,37 @@ function buildRCA(module1: Module1Result, steps: FunnelStep[]): Module2Result['r
   const latest = module1.latestWeek;
   if (!latest) return null;
 
-  const failedSteps = steps.filter(s => s.status === 'fail');
-  const warningSteps = steps.filter(s => s.status === 'warning');
-  const problemSteps = [...failedSteps, ...warningSteps];
+  // RCA based on Tier 2 steps only (2, 3, 4)
+  const tier2Steps = steps.filter(s => [2, 3, 4].includes(s.step));
+  const t2Fails = tier2Steps.filter(s => s.status === 'fail');
+  const t2Warnings = tier2Steps.filter(s => s.status === 'warning');
+  const t2NoData = tier2Steps.filter(s => s.status === 'no_data');
 
-  if (problemSteps.length === 0) {
+  // All Tier 2 data missing — can't diagnose
+  if (t2NoData.length === tier2Steps.length) {
     return {
-      action: 'Monitor — no acute funnel breakpoints detected.',
-      rootCause: 'Economics may be within acceptable variance.',
-      discussion: 'All funnel steps passed or had insufficient data. Ensure Tier 2 data is provided for a complete diagnosis.',
-      solve: 'Maintain current approach. Look for incremental gains.',
-      doNotDo: 'Do not increase spend to "test" without fixing underlying unit economics first.',
+      action: 'Collect Tier 2 data before diagnosing.',
+      rootCause: 'Cannot determine — no Tier 2 metrics provided.',
+      discussion: 'Without CPM, CTR, Frequency, Clicks, Sessions, and CVR there is no funnel to diagnose. Enter Tier 2 data above.',
+      solve: 'Input Meta Ads and Shopify funnel metrics to unlock the full diagnostic.',
+      doNotDo: 'Do NOT guess the root cause from Tier 1 economics alone. Tier 2 reveals where the funnel breaks.',
     };
   }
 
-  const primaryFail = failedSteps[0] || warningSteps[0];
-  const isVolumeIssue = module1.verdict === 'volume_problem' || module1.verdict === 'both';
-  const isCmIssue = module1.verdict === 'cm_problem' || module1.verdict === 'both';
+  // All Tier 2 steps healthy
+  if (t2Fails.length === 0 && t2Warnings.length === 0) {
+    return {
+      action: 'Monitor — Tier 2 funnel metrics are healthy.',
+      rootCause: 'No breakpoints detected in attention, click integrity, or conversion layers.',
+      discussion: 'The funnel is functioning within acceptable ranges at every Tier 2 checkpoint. If economics are still off, the issue lives in Tier 1 (pricing, CAC structure, or volume shortfall) — not the funnel.',
+      solve: 'Maintain current funnel approach. Look for incremental gains in creative testing and landing page optimization.',
+      doNotDo: 'Do NOT change what is working. If there is still an economic problem it is NOT a funnel problem.',
+    };
+  }
+
+  // Identify the primary Tier 2 failure
+  const primary = t2Fails[0] || t2Warnings[0];
+  const problemNames = [...t2Fails, ...t2Warnings].map(s => `Step ${s.step} (${s.title})`);
 
   let action = '';
   let rootCause = '';
@@ -367,28 +381,39 @@ function buildRCA(module1: Module1Result, steps: FunnelStep[]): Module2Result['r
   let solve = '';
   let doNotDo = '';
 
-  if (isCmIssue) {
-    const cacGap = latest.cacActual && latest.cacForecast ? latest.cacActual - latest.cacForecast : 0;
-    const aovGap = latest.aovForecast && latest.aovActual ? latest.aovForecast - latest.aovActual : 0;
+  // Step 2 failing = top-of-funnel attention problem
+  if (primary.step === 2) {
+    action = 'Fix attention layer before diagnosing anything downstream.';
+    const issues: string[] = [];
+    if (latest.cpm != null && latest.cpm > 30) issues.push(`CPM at $${latest.cpm.toFixed(2)} signals audience saturation or auction pressure`);
+    if (latest.ctr != null && latest.ctr < 1.5) issues.push(`CTR at ${latest.ctr.toFixed(2)}% signals message-market mismatch`);
+    if (latest.frequency != null && latest.frequency > 2) issues.push(`Frequency at ${latest.frequency.toFixed(1)}x signals creative fatigue`);
+    rootCause = issues.length > 0 ? issues.join('. ') + '.' : primary.finding;
+    discussion = 'Attention is the first domino. High CPM, low CTR, or high frequency corrupt every metric downstream — clicks, sessions, CVR all inherit the problem. Fix this layer first.';
+    solve = 'Rotate creative, test new hooks/angles, broaden or refresh audiences, and reduce spend until efficiency returns.';
+    doNotDo = 'Do NOT scale spend into bad attention metrics. More budget at high frequency and low CTR just accelerates waste.';
+  }
+  // Step 3 failing = click leakage / tracking integrity
+  else if (primary.step === 3) {
+    const ratio = latest.clickSessionRatio;
+    action = 'Fix click-to-session leakage — paid clicks are not reaching the site.';
+    rootCause = `Click-session ratio at ${ratio?.toFixed(2)}. ${latest.metaClicks} Meta clicks producing only ${latest.shopifySessions} Shopify sessions. Clicks are being lost between ad platform and site.`;
+    discussion = 'This is a system/tech issue, not a traffic quality issue. Every lost click is wasted ad spend that never had a chance to convert. Attention metrics may look fine but the handoff is broken.';
+    solve = 'Audit landing page speed, verify Meta pixel fires correctly, check UTM parameter setup, rule out bot clicks, compare with Google Analytics sessions.';
+    doNotDo = 'Do NOT blame traffic quality or creative. The traffic is clicking — it is just not arriving. This is an infrastructure problem.';
+  }
+  // Step 4 failing = conversion problem
+  else {
+    action = 'Fix site conversion — traffic is arriving but not buying.';
+    rootCause = `CVR at ${latest.cvr?.toFixed(2)}%${latest.cvr != null && latest.cvr < 1.5 ? ' — below the 1.5% floor' : ''}. The site is failing to convert the traffic it receives.`;
+    discussion = 'Traffic is innocent until proven guilty. Attention and click integrity are acceptable, so the problem is on-site: offer clarity, trust signals, friction, or checkout experience.';
+    solve = 'Audit offer presentation, strengthen social proof, simplify checkout flow, test price anchoring and urgency elements. Review mobile vs desktop split.';
+    doNotDo = 'Do NOT blame the ad creative or audience for low CVR. The funnel delivered traffic — the site failed to convert it.';
+  }
 
-    if (cacGap > aovGap) {
-      rootCause = `CAC is the primary leak. $${latest.cacActual} actual vs $${latest.cacForecast} target = $${cacGap.toFixed(0)} overspend per customer.`;
-      solve = 'Reduce CAC: tighten targeting, test new creative to lower CPA, or reduce spend to find efficient floor.';
-      doNotDo = `Do NOT increase spend to "get more data." More spend at $${latest.cacActual} CAC just buys more losses.`;
-    } else {
-      rootCause = `AOV is the primary leak. $${latest.aovActual} actual vs $${latest.aovForecast} target = $${aovGap.toFixed(0)} shortfall per customer.`;
-      solve = 'Increase AOV: test bundles, upsells, free shipping thresholds, or higher-priced hero SKU in ads.';
-      doNotDo = 'Do NOT discount to drive volume. Lower prices worsen AOV and compound the CM problem.';
-    }
-
-    action = 'Fix unit economics before any volume push.';
-    discussion = `Unit CM is $${latest.unitCmActual?.toFixed(0)}/customer. ${module1.cmMirage ? 'WARNING: Total CM beating forecast is a mirage caused by low volume.' : ''} The business is losing $${Math.abs(latest.unitCmActual ?? 0).toFixed(0)} on every new customer acquired.`;
-  } else if (isVolumeIssue) {
-    rootCause = `Volume is the constraint. Delivering ${latest.countActual} customers vs ${latest.countForecast} target (${latest.countPva?.toFixed(0)}% PvA).`;
-    action = 'Diagnose volume bottleneck in funnel steps.';
-    discussion = `Unit economics are acceptable but customer acquisition is severely under plan. The funnel is leaking traffic or conversions.`;
-    solve = `Focus on Step ${primaryFail.step} (${primaryFail.title}): ${primaryFail.finding}`;
-    doNotDo = 'Do NOT assume more spend = more customers. Current spend is not converting efficiently.';
+  // If multiple Tier 2 steps are broken, note it
+  if (problemNames.length > 1) {
+    discussion += ` Note: multiple Tier 2 breakpoints detected (${problemNames.join(', ')}). Fix in order — attention first, then click integrity, then conversion.`;
   }
 
   return { action, rootCause, discussion, solve, doNotDo };

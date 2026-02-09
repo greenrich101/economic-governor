@@ -1,57 +1,10 @@
 import type { WeekData } from './types';
 import { EMPTY_WEEK } from './types';
 
-const SHEET_ID = '1sE1p-OfzS013SPOX4kubi3q-Jy5KN9kqHY9rFYPNhZs';
-const SHEET_GID = '0';
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  let current = '';
-  let inQuotes = false;
-  let row: string[] = [];
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += ch;
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ',') {
-        row.push(current);
-        current = '';
-      } else if (ch === '\n' || (ch === '\r' && text[i + 1] === '\n')) {
-        row.push(current);
-        current = '';
-        rows.push(row);
-        row = [];
-        if (ch === '\r') i++;
-      } else if (ch === '\r') {
-        row.push(current);
-        current = '';
-        rows.push(row);
-        row = [];
-      } else {
-        current += ch;
-      }
-    }
-  }
-
-  if (current || row.length > 0) {
-    row.push(current);
-    rows.push(row);
-  }
-
-  return rows;
+function parseTSV(text: string): string[][] {
+  return text.trim().split('\n').map(line =>
+    line.split('\t').map(cell => cell.replace(/^"|"$/g, '').trim())
+  );
 }
 
 function parseValue(raw: string): number | null {
@@ -102,44 +55,29 @@ function matchRow(label: string): RowMatch | null {
   return null;
 }
 
-export async function fetchSheetData(): Promise<WeekData[]> {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+export function parsePastedData(text: string): WeekData[] {
+  const rows = parseTSV(text);
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
+  if (rows.length < 2) throw new Error('Not enough rows — paste the full table from Google Sheets');
 
-  const csvText = await response.text();
-  const rows = parseCSV(csvText);
-
-  if (rows.length < 2) throw new Error('Sheet has no data');
-
-  // Row 0 = date headers (col 0 empty, cols 1+ are dates like "28 Dec")
   const dateRow = rows[0];
 
-  // Find week columns (skip column 0 which is the metric label)
-  const weekColumns: { colIndex: number; label: string; weekNum: number }[] = [];
-
+  const weekColumns: { colIndex: number; label: string }[] = [];
   for (let col = 1; col < dateRow.length; col++) {
     const label = dateRow[col]?.trim();
     if (label) {
-      weekColumns.push({
-        colIndex: col,
-        label,
-        weekNum: weekColumns.length + 1,
-      });
+      weekColumns.push({ colIndex: col, label });
     }
   }
 
-  if (weekColumns.length === 0) throw new Error('No week columns found in sheet');
+  if (weekColumns.length === 0) throw new Error('No week columns found in pasted data');
 
-  // Initialize weeks with sequential numbering
   const weeks: WeekData[] = weekColumns.map((wc, i) => ({
     ...EMPTY_WEEK,
     label: wc.label,
     weekNum: i + 1,
   }));
 
-  // Parse data rows and populate matching fields
   for (const row of rows) {
     const metricLabel = row[0] || '';
     const match = matchRow(metricLabel);

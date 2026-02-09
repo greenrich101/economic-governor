@@ -158,6 +158,7 @@ export default function Module2({ result, weeks, onChange }: Props) {
             <div className="flex flex-col items-start gap-1">
               <span className="text-base font-bold tracking-wide">Tier 2 — Directional Data Input</span>
               <span className="text-xs text-yellow-600/80 font-normal">Enter your Meta Ads + Shopify funnel metrics below to unlock the full diagnostic</span>
+              <span className="text-xs text-yellow-500/90 font-semibold">⚠ Do this per funnel or account-wide — pick one, don't mix.</span>
             </div>
             <span className="text-lg ml-4">{showTier2 ? '▲' : '▼'}</span>
           </button>
