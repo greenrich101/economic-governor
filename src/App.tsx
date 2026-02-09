@@ -106,8 +106,7 @@ export default function App() {
       <header className="border-b border-gray-800 bg-gray-900/50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">Economic Governor</h1>
-            <p className="text-xs text-gray-500">Full-Funnel Diagnostician</p>
+            <h1 className="text-xl font-bold text-white">Economic Governor + Full-Funnel Diagnostician</h1>
           </div>
           <div className="flex gap-2 items-center">
             {error && (

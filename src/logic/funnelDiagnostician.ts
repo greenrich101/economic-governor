@@ -1,4 +1,4 @@
-import type { CalculatedWeek, Module1Result, Module2Result, FunnelStep } from '../types';
+import type { CalculatedWeek, Module1Result, Module2Result, FunnelStep, Tier2DiagnosisRow } from '../types';
 
 export function runModule2(module1: Module1Result): Module2Result {
   const { verdict, weeks } = module1;
@@ -6,7 +6,7 @@ export function runModule2(module1: Module1Result): Module2Result {
   const prev = weeks.length >= 2 ? weeks[weeks.length - 2] : null;
 
   if (!latest) {
-    return { allowed: false, allowedScope: 'No data', steps: [], rcaSummary: null };
+    return { allowed: false, allowedScope: 'No data', steps: [], tier2Diagnosis: [], rcaSummary: null };
   }
 
   const allowed = verdict !== 'neither';
@@ -27,9 +27,10 @@ export function runModule2(module1: Module1Result): Module2Result {
   steps.push(buildStep5(latest));
   steps.push(buildStep6(latest));
 
+  const tier2Diagnosis = buildTier2Diagnosis(latest, steps);
   const rcaSummary = buildRCA(module1, steps);
 
-  return { allowed, allowedScope, steps, rcaSummary };
+  return { allowed, allowedScope, steps, tier2Diagnosis, rcaSummary };
 }
 
 function buildStep1(latest: CalculatedWeek, prev: CalculatedWeek | null): FunnelStep {
@@ -215,6 +216,126 @@ function buildStep6(latest: CalculatedWeek): FunnelStep {
     finding: findings.join(' '),
     dataUsed: 'Tier 1: AOV, CAC, CM, Count',
     warning: null,
+  };
+}
+
+function buildTier2Diagnosis(latest: CalculatedWeek, steps: FunnelStep[]): Tier2DiagnosisRow[] {
+  const tier2Steps = steps.filter(s => [2, 3, 4].includes(s.step));
+  return tier2Steps.map(s => {
+    if (s.status === 'no_data') {
+      return {
+        step: s.step, title: s.title,
+        action: 'Collect data', identify: 'No Tier 2 data provided.',
+        rootCause: 'Cannot determine — data missing.',
+        discuss: 'Prioritize getting this data entered to unlock diagnosis.',
+        solve: 'Input the required Tier 2 metrics.', assign: 'Media Buyer',
+      };
+    }
+
+    if (s.step === 2) return buildStep2Diagnosis(latest, s);
+    if (s.step === 3) return buildStep3Diagnosis(latest, s);
+    return buildStep4Diagnosis(latest, s);
+  });
+}
+
+function buildStep2Diagnosis(latest: CalculatedWeek, s: FunnelStep): Tier2DiagnosisRow {
+  if (s.status === 'pass') {
+    return {
+      step: 2, title: s.title, action: 'Monitor',
+      identify: 'Attention metrics healthy.',
+      rootCause: 'No issue detected in Meta attention layer.',
+      discuss: 'Current creative and targeting performing within range.',
+      solve: 'Maintain current approach. Test incrementally.',
+      assign: 'Media Buyer',
+    };
+  }
+
+  const issues: string[] = [];
+  const causes: string[] = [];
+  const solves: string[] = [];
+
+  if (latest.cpm != null && latest.cpm > 30) {
+    issues.push(`CPM elevated at $${latest.cpm.toFixed(2)}`);
+    causes.push('Audience saturation or competitive auction pressure');
+    solves.push('Broaden targeting or test new audiences');
+  }
+  if (latest.ctr != null && latest.ctr < 1.5) {
+    issues.push(`CTR low at ${latest.ctr.toFixed(2)}%`);
+    causes.push('Message-market mismatch — hooks not resonating');
+    solves.push('Test new hooks, angles, and creative formats');
+  }
+  if (latest.frequency != null && latest.frequency > 2) {
+    issues.push(`Frequency high at ${latest.frequency.toFixed(1)}x`);
+    causes.push('Creative fatigue — same audience seeing ads too often');
+    solves.push('Rotate creative, expand audience, or reduce spend');
+  }
+
+  return {
+    step: 2, title: s.title,
+    action: s.status === 'fail' ? 'Fix immediately' : 'Investigate',
+    identify: issues.join('. ') + '.',
+    rootCause: causes.join('. ') + '.',
+    discuss: 'Attention layer issues bleed into every downstream metric. Fix before diagnosing conversion.',
+    solve: solves.join('. ') + '.',
+    assign: 'Media Buyer',
+  };
+}
+
+function buildStep3Diagnosis(latest: CalculatedWeek, s: FunnelStep): Tier2DiagnosisRow {
+  const ratio = latest.clickSessionRatio;
+
+  if (s.status === 'pass') {
+    return {
+      step: 3, title: s.title, action: 'Monitor',
+      identify: `Click-to-session ratio clean at ${ratio?.toFixed(2)}.`,
+      rootCause: 'No tracking or landing page issues detected.',
+      discuss: 'Clicks are reaching the site. Funnel integrity intact at this layer.',
+      solve: 'No action needed. Continue monitoring.',
+      assign: 'Dev / Analytics',
+    };
+  }
+
+  const severe = ratio != null && ratio > 1.5;
+  return {
+    step: 3, title: s.title,
+    action: severe ? 'Fix immediately' : 'Investigate',
+    identify: `${latest.metaClicks} Meta clicks but only ${latest.shopifySessions} sessions (ratio: ${ratio?.toFixed(2)}).`,
+    rootCause: severe
+      ? 'Major click leakage — likely slow page load, broken landing page, bot traffic, or tracking mismatch.'
+      : 'Moderate click loss — possible page speed issue or minor tracking drift.',
+    discuss: 'Every lost click is wasted ad spend. This is a system/tech issue, not a traffic quality issue.',
+    solve: severe
+      ? 'Audit landing page speed, check UTM/pixel setup, rule out bot clicks, verify Shopify session tracking.'
+      : 'Check page load time. Verify Meta pixel fires on landing. Compare with GA sessions.',
+    assign: 'Dev / Analytics',
+  };
+}
+
+function buildStep4Diagnosis(latest: CalculatedWeek, s: FunnelStep): Tier2DiagnosisRow {
+  if (s.status === 'pass') {
+    return {
+      step: 4, title: s.title, action: 'Monitor',
+      identify: `CVR healthy at ${latest.cvr?.toFixed(2)}%.`,
+      rootCause: 'Traffic is converting — site experience is working.',
+      discuss: 'Conversion is not the bottleneck. Look upstream or at unit economics.',
+      solve: 'Maintain current offer and page experience. Test for incremental gains.',
+      assign: 'CRO / Marketing',
+    };
+  }
+
+  const belowFloor = latest.cvr != null && latest.cvr < 1.5;
+  return {
+    step: 4, title: s.title,
+    action: belowFloor ? 'Fix immediately' : 'Investigate',
+    identify: `CVR at ${latest.cvr?.toFixed(2)}%${belowFloor ? ' — below 1.5% floor' : ' — mediocre'}.`,
+    rootCause: belowFloor
+      ? 'Offer clarity, proof elements, or friction killing conversions. Traffic is innocent until proven guilty.'
+      : 'Room for improvement in offer presentation, trust signals, or checkout flow.',
+    discuss: 'Do not blame traffic for low CVR. Diagnose the offer, page experience, and friction points first.',
+    solve: belowFloor
+      ? 'Audit offer clarity, add/improve social proof, simplify checkout, test price anchoring.'
+      : 'A/B test headline, hero image, and CTA. Review mobile experience. Test urgency elements.',
+    assign: 'CRO / Marketing',
   };
 }
 

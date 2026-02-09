@@ -74,7 +74,7 @@ const STEP_CHECKS: Record<number, string> = {
 };
 
 export default function Module2({ result, weeks, onChange }: Props) {
-  const { allowedScope, steps, rcaSummary } = result;
+  const { allowedScope, steps, tier2Diagnosis, rcaSummary } = result;
   const [showTier2, setShowTier2] = useState(true);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
   const [bulkText, setBulkText] = useState('');
@@ -294,6 +294,47 @@ export default function Module2({ result, weeks, onChange }: Props) {
           </tbody>
         </table>
       </div>
+
+      {tier2Diagnosis.length > 0 && (
+        <div className="border-t border-yellow-800/40 p-4">
+          <h3 className="text-sm font-bold text-yellow-500 mb-3">Tier 2 Diagnostic — Action Table</h3>
+          <p className="text-xs text-yellow-600/70 mb-3">Based on Tier 2 directional data only. No profitability conclusions.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b-2 border-yellow-800/40">
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold w-[50px]">Step</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold w-[110px]">Action</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold">Identify</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold">Root Cause</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold">Discuss</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold">Solve</th>
+                  <th className="py-2 px-3 text-left text-yellow-600 font-semibold w-[110px]">Assign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tier2Diagnosis.map(row => {
+                  const actionColor = row.action === 'Fix immediately' ? 'text-red-400 font-bold'
+                    : row.action === 'Investigate' ? 'text-yellow-400 font-medium'
+                    : row.action === 'Collect data' ? 'text-gray-500'
+                    : 'text-green-400';
+                  return (
+                    <tr key={row.step} className="border-b border-gray-800 hover:bg-gray-800/30 transition-colors">
+                      <td className="py-2.5 px-3 text-white font-medium">{row.step}. {row.title}</td>
+                      <td className={`py-2.5 px-3 ${actionColor}`}>{row.action}</td>
+                      <td className="py-2.5 px-3 text-gray-300">{row.identify}</td>
+                      <td className="py-2.5 px-3 text-gray-300">{row.rootCause}</td>
+                      <td className="py-2.5 px-3 text-gray-400">{row.discuss}</td>
+                      <td className="py-2.5 px-3 text-green-400">{row.solve}</td>
+                      <td className="py-2.5 px-3 text-yellow-500 font-medium">{row.assign}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {rcaSummary && (
         <div className="border-t border-gray-800 p-4">

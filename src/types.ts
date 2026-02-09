@@ -60,10 +60,22 @@ export interface FunnelStep {
   warning: string | null;
 }
 
+export interface Tier2DiagnosisRow {
+  step: number;
+  title: string;
+  action: string;
+  identify: string;
+  rootCause: string;
+  discuss: string;
+  solve: string;
+  assign: string;
+}
+
 export interface Module2Result {
   allowed: boolean;
   allowedScope: string;
   steps: FunnelStep[];
+  tier2Diagnosis: Tier2DiagnosisRow[];
   rcaSummary: {
     action: string;
     rootCause: string;
